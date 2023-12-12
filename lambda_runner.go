@@ -61,6 +61,8 @@ func Handler(event events.APIGatewayWebsocketProxyRequest) (Response, error) {
 		}, nil
 	}
 
+	log.Info().Msg("Authorized")
+
 	return Response{
 		Body:       "Authorized",
 		StatusCode: 200,
