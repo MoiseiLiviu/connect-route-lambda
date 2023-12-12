@@ -6,6 +6,8 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/rs/zerolog/log"
+	"os"
+	"strings"
 )
 
 type Response struct {
@@ -14,38 +16,54 @@ type Response struct {
 }
 
 func Handler(event events.APIGatewayWebsocketProxyRequest) (Response, error) {
-	authorizer, ok := event.RequestContext.Authorizer.(map[string]interface{})
-	if !ok {
-		log.Info().Msg("Authorizer not found in request context")
+	jwksUrl := os.Getenv("JWKS_URL")
+	if jwksUrl == "" {
+		log.Error().Msg("JWKS_URL is not set")
 		return Response{
-			StatusCode: 401,
-			Body:       "Authorizer not found in request context",
-		}, nil
-	}
-
-	log.Info().Msgf("Authorizer: %v", authorizer)
-
-	userID, ok := authorizer["UserID"].(string)
-	if !ok {
-		log.Info().Msg("UserID not found in authorizer")
-		return Response{
-			StatusCode: 401,
-			Body:       "UserID not found in authorizer",
-		}, nil
-	}
-
-	err := Init(event.RequestContext.ConnectionID, userID)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to save connection details")
-		return Response{
+			Body:       "JWKS_URL is not set",
 			StatusCode: 500,
-			Body:       "Failed to save connection details",
+		}, nil
+	}
+
+	authorizer, err := NewAuthorizer(jwksUrl)
+	if err != nil {
+		log.Err(err).Msg("Failed to create authorizer")
+		return Response{
+			Body:       "Failed to create authorizer",
+			StatusCode: 500,
+		}, nil
+	}
+
+	authHeader := event.Headers["Authorization"]
+	if authHeader == "" {
+		log.Error().Msg("Authorization header not found")
+		return Response{
+			Body:       "Authorization header not found",
+			StatusCode: 401,
+		}, nil
+	}
+
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	if token == "" {
+		log.Error().Msg("Token not found")
+		return Response{
+			Body:       "Token not found",
+			StatusCode: 401,
+		}, nil
+	}
+
+	err = authorizer.Execute(token)
+	if err != nil {
+		log.Err(err).Msg("invalid token")
+		return Response{
+			Body:       err.Error(),
+			StatusCode: 401,
 		}, nil
 	}
 
 	return Response{
+		Body:       "Authorized",
 		StatusCode: 200,
-		Body:       "Successfully created connection!",
 	}, nil
 }
 

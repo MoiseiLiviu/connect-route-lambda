@@ -1,8 +1,8 @@
 .PHONY: build zip deploy invoke logs clean
 
-FUNCTION_NAME = connection-user-details-to-dynamo-publisher
+FUNCTION_NAME = connect-route-lambda
 HANDLER_NAME = bootstrap
-ZIP_NAME = connection-user-details-to-dynamo-publisher.zip
+ZIP_NAME = connect-route-lambda.zip
 SOURCE_FILES = $(shell find . -name '*.go')
 LOG_GROUP_NAME = /aws/lambda/$(FUNCTION_NAME)
 INPUT_FILE = input.json
